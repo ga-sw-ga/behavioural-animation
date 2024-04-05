@@ -49,18 +49,87 @@ namespace simulation {
 
 		}
 
-		void BoidsModel::step(float dt) {
-			reset(); // Comment this out
-			//TODO: apply forces and compute integration step
-		}
+        void BoidsModel::step(float dt) {
+            // Iterate through each boid
+            for (primatives::boid& bi : boids) {
+                bi.f = glm::vec3(0.f);
+                bi.g = g;
 
-		void BoidsModel::render(const ModelViewContext& view) {
+                // Iterate through each other boid
+                for (const primatives::boid& bj : boids) {
+                    if (&bi == &bj) continue; // Skip self-comparison
+
+                    glm::vec3 DeltaXij = bj.p - bi.p;
+                    float d = glm::length(DeltaXij);
+//                    std::cout << d << "\n";
+                    float alpha = glm::dot(glm::normalize(DeltaXij), glm::normalize(bi.v));
+
+                    if (d < r_s && alpha > cos(theta_s)) {
+                        bi.f += separationForce(bi, bj);
+                    } else if (d < r_a && alpha > cos(theta_a)) {
+                        bi.f += alignmentForce(bi, bj);
+                    } else if (d < r_c && alpha > cos(theta_c)) {
+                        bi.f += cohesionForce(bi, bj);
+                    }
+                }
+
+                // Integrate forward velocity and position for bi
+//                std::cout << bi.f.x << ", " << bi.f.y << ", " << bi.f.z << "\n";
+                bi.integrate(dt);
+                bi.orientate();
+            }
+
+//            boids[0].v = glm::normalize(glm::vec3(boids[0].p.y * -1.f, boids[0].p.x, 0.f)) * 10.f;
+//            boids[1].v = glm::vec3(-5.f, 0.f, 0.f);
+//            boids[1].v = glm::vec3(10.f, 0.f, 0.f);
+//            boids[2].v = glm::vec3(10.f, 0.f, 0.f);
+//            boids[0].v = 10.f * glm::vec3((rand() - RAND_MAX / 1.f) / (RAND_MAX + 1.0), (rand() - RAND_MAX / 1.f) / (RAND_MAX + 1.0), (rand() - RAND_MAX / 1.f) / (RAND_MAX + 1.0));
+//            boids[0].integrate(dt);
+        }
+
+
+        void BoidsModel::render(const ModelViewContext& view) {
 			//Add Mass render
 			for (const primatives::boid& boid : boids)
-				givr::addInstance(boid_render, glm::translate(glm::mat4(1.f), boid.p)); //NEED TO FRAME!!!
+                givr::addInstance(boid_render, calculateTransformMatrix(boid.p, boid.t, boid.n, boid.b));
+//				givr::addInstance(boid_render, glm::translate(glm::mat4(1.f), boid.p)); //NEED TO FRAME!!!
 
 			//Render
 			givr::style::draw(boid_render, view);
 		}
+
+        glm::vec3 BoidsModel::separationForce(const primatives::boid& bi, const primatives::boid& bj) const {
+            glm::vec3 DeltaXij = bj.p - bi.p;
+            float d = glm::length(DeltaXij);
+            return -1.f * k_s * DeltaXij / (d * d); // Inverse Linear Force
+        }
+
+        // Function to calculate alignment force
+        glm::vec3 BoidsModel::alignmentForce(const primatives::boid& bi, const primatives::boid& bj) const {
+            return k_a * (bj.v - bi.v); // Linear force on velocity
+        }
+
+        // Function to calculate cohesion force
+        glm::vec3 BoidsModel::cohesionForce(const primatives::boid& bi, const primatives::boid& bj) const {
+            return k_c * (bj.p - bi.p); // Linear force
+        }
+
+        glm::mat4 BoidsModel::calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal) {
+            // Calculate the rotation matrix based on the tangent and normal
+            glm::mat4 rotationMatrix = glm::mat4(1.0f);
+            rotationMatrix[0] = glm::vec4(binormal, 0.0f);
+            rotationMatrix[1] = glm::vec4(normal, 0.0f);
+            rotationMatrix[2] = glm::vec4(tangent, 0.0f);
+            rotationMatrix[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+            // Construct the model matrix with the combined rotation
+            glm::mat4 TransformMatrix = glm::mat4(1.0f);
+            TransformMatrix[0] = rotationMatrix[0];
+            TransformMatrix[1] = rotationMatrix[1];
+            TransformMatrix[2] = rotationMatrix[2];
+            TransformMatrix[3] = glm::vec4(position, 1.0f);
+
+            return TransformMatrix;
+        }
 	} // namespace models
 } // namespace simulation

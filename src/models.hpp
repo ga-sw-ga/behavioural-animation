@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/compatibility.hpp> // lerp
@@ -15,17 +16,29 @@ namespace simulation {
 		struct boid {
 			glm::vec3 p = glm::vec3(0.f);
 			glm::vec3 v = glm::vec3(0.f);
-            float m = 1.f;
             glm::vec3 f = glm::vec3(0.f);
+            glm::vec3 g = glm::vec3(0.f);
+
+            // for orientation
+            glm::vec3 t = glm::vec3(1.f, 0.f, 0.f);
+            glm::vec3 b = glm::vec3(0.f, 0.f, 1.f);
+            glm::vec3 n = glm::vec3(0.f, 1.f, 0.f);
 			//Note: Mass is implicitly 1 (our choice) so Force = Acceleration
 			//TO-DO: Modify this class to include certain desired quantities (mass, force, ...)
 			//May even add functions! Such as integration ...
 
             // Integration function
             void integrate(float dt) {
-                glm::vec3 a = f / m;
+                glm::vec3 a = f + g;
                 v += a * dt;
                 p += v * dt;
+//                std::cout << (v).x << ", " << (v).y << ", " << (v).z << "\n";
+            }
+
+            void orientate() {
+                t = glm::normalize(v);
+                b = glm::normalize(glm::cross(t, f - g));
+                n = glm::normalize(glm::cross(b, t));
             }
         };
 
@@ -58,10 +71,17 @@ namespace simulation {
 			void reset();
 			void step(float dt);
 			void render(const ModelViewContext& view);
+            glm::vec3 separationForce(const primatives::boid& bi, const primatives::boid& bj) const;
+            glm::vec3 cohesionForce(const primatives::boid& bi, const primatives::boid& bj) const;
+            glm::vec3 alignmentForce(const primatives::boid& bi, const primatives::boid& bj) const;
+            static glm::mat4 calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal);
 
 			//Simulation Constants (you can re-assign values here from imgui)
 			glm::vec3 g = { 0.f, -9.81f, 0.f };
 			size_t n_boids = 100; //need alot more eventually for full assignment
+            float r_s = 6.f, r_a = 8.f, r_c = 10.f;
+            float theta_s = 175.f * M_PI / 180.f, theta_a = 140.f * M_PI / 180.f, theta_c = 120.f * M_PI / 180.f;
+            float k_s = 1.f, k_a = 0.4f, k_c = 0.2f;
 
 		private:
 			//Simulation Parts
