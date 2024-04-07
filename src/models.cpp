@@ -11,6 +11,10 @@ namespace simulation {
 		BoidsModel::BoidsModel()
 			: boid_geometry(givr::geometry::Mesh(givr::geometry::Filename("./models/dart.obj")))
 			, boid_style(givr::style::Colour(1.f, 1.f, 0.f), givr::style::LightPosition(100.f, 100.f, 100.f))
+            , wall_geometry()
+            , wall_style(givr::style::Colour(1.f, 1.f, 1.f), givr::style::LightPosition(100.f, 100.f, 100.f))
+            , sphere_geometry()
+            , sphere_style(givr::style::Colour(0.f, 1.f, 1.f), givr::style::LightPosition(100.f, 100.f, 100.f))
 		{
             int plane_count = 6;
             planes.resize(plane_count);
@@ -28,11 +32,25 @@ namespace simulation {
                 planes[i] = pl;
             }
 
+            int sphere_count = 1;
+            spheres.resize(sphere_count);
+            for (int i = 0; i < sphere_count; ++i) {
+                primatives::sphere sp = primatives::sphere();
+                sp.origin = glm::vec3(-25.f, -25.f, -25.f);
+                sp.radius = 15.f;
+                sp.epsilon = 3.f;
+                sp.collision_avoid_distance = 20.f;
+                spheres[i] = sp;
+            }
+
 			// Reset Dynamic elements
 			reset();
 
 			// Render
 			boid_render = givr::createInstancedRenderable(boid_geometry, boid_style);
+            wall_render = givr::createInstancedRenderable(wall_geometry, wall_style);
+            sphere_render = givr::createInstancedRenderable(sphere_geometry, sphere_style);
+//            auto instancedSpheres = givr::createRenderable(sphere_geometry, sphere_style);
 		}
 
 		void BoidsModel::reset() {
@@ -93,6 +111,10 @@ namespace simulation {
 //                    std::cout << glm::length(planeAvoidanceForce(bi, planes[i])) << "\n";
                     bi.f += planeAvoidanceForce(bi, planes[i]);
                 }
+                for (int i = 0; i < spheres.size(); ++i) {
+//                    std::cout << glm::length(planeAvoidanceForce(bi, planes[i])) << "\n";
+                    bi.f += sphereAvoidanceForce(bi, spheres[i]);
+                }
 
                 // Integrate forward velocity and position for bi
 //                std::cout << bi.f.x << ", " << bi.f.y << ", " << bi.f.z << "\n";
@@ -123,8 +145,14 @@ namespace simulation {
                 givr::addInstance(boid_render, calculateTransformMatrix(boid.p, boid.t, boid.n, boid.b));
 //				givr::addInstance(boid_render, glm::translate(glm::mat4(1.f), boid.p)); //NEED TO FRAME!!!
 
+            for (const primatives::sphere &sphere: spheres) {
+                givr::addInstance(sphere_render, glm::scale(glm::translate(glm::mat4(1.f), sphere.origin), glm::vec3(sphere.radius)));
+//                givr::addInstance(sphere_render, glm::translate(glm::scale(glm::mat4(1.f), glm::vec3(sphere.radius)), sphere.origin));
+            }
+
 			//Render
 			givr::style::draw(boid_render, view);
+            givr::style::draw(sphere_render, view);
 		}
 
         glm::vec3 BoidsModel::separationForce(const primatives::boid& bi, const primatives::boid& bj) const {
@@ -173,7 +201,40 @@ namespace simulation {
         }
 
         glm::vec3 BoidsModel::sphereAvoidanceForce(const primatives::boid& bi, const primatives::sphere& sphere) const {
+            glm::vec3 u = bi.p - sphere.origin;
+            glm::vec3 n_hat = glm::normalize(u);
+            float u_length = glm::length(u);
+            if (u_length <= sphere.radius + sphere.epsilon) {
+                float s_f = (sphere.radius + sphere.epsilon - u_length) * sphere.wall_k_s;
+                float d_f = glm::dot(bi.v, n_hat) * sphere.wall_k_d * (-1.f);
+                return (s_f + d_f) * n_hat;
+            }
 
+            float v_length = glm::length(bi.v);
+            if (v_length < 0.01f) {
+                return glm::vec3(0.f);
+            }
+
+            glm::vec3 v_hat = glm::normalize(bi.v);
+            float future_distance = std::sqrt((u_length * u_length) - (sphere.radius * sphere.radius));
+            glm::vec3 future_pos = v_hat * future_distance;
+            if (glm::distance(future_pos, sphere.origin) <= sphere.radius + sphere.epsilon && u_length - sphere.radius - sphere.epsilon < sphere.collision_avoid_distance) {
+                float dot_n_v = glm::dot(n_hat, v_hat);
+                if (dot_n_v > 0.99f || dot_n_v < -0.99f) {
+                    dot_n_v = std::clamp(dot_n_v, -0.99f, 0.99f);
+                }
+                glm::vec3 a_c_hat = glm::normalize(n_hat - dot_n_v * v_hat);
+                float dot_u_a = glm::dot(u, a_c_hat);
+                if (dot_u_a > sphere.radius + sphere.epsilon - 0.01f) {
+                    dot_u_a = sphere.radius + sphere.epsilon - 0.01f;
+                }
+                float r = ((u_length * u_length) - ((sphere.radius + sphere.epsilon) * (sphere.radius + sphere.epsilon))) / (2.f * (sphere.radius + sphere.epsilon - dot_u_a));
+                glm::vec3 a_c = (glm::dot(bi.v, bi.v) / r) * a_c_hat;
+                std::cout << glm::dot(a_c, bi.v) << "\n";
+                return a_c;
+            }
+
+            return glm::vec3(0.f);
         }
 
         glm::mat4 BoidsModel::calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal) {

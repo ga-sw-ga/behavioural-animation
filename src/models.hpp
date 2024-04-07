@@ -48,7 +48,7 @@ namespace simulation {
             glm::vec3 origin = glm::vec3(0.f);
             glm::vec3 normal = glm::vec3(0.f, 1.f, 0.f);
             float epsilon = 5.f;
-            float collision_avoid_distance = 200.f;
+            float collision_avoid_distance = 20.f;
             float wall_k_s = 100.f, wall_k_d = 0.2f;
 		};
 
@@ -56,7 +56,10 @@ namespace simulation {
 		struct sphere {
 			//TO-DO: Define a sphere for collision avoidence purposes
             glm::vec3 origin = glm::vec3(0.f);
-            float radius = 1.f;
+            float radius = 10.f;
+            float epsilon = 1.f;
+            float collision_avoid_distance = 10.f;
+            float wall_k_s = 100.f, wall_k_d = 0.2f;
 		};
 	} // namespace primatives
 
@@ -93,10 +96,6 @@ namespace simulation {
             float k_s = 15.f, k_a = 0.4f, k_c = 0.2f;
             float min_boid_v = 1.f, max_boid_v = 25.f;
 
-            //Collisions
-//            std::vector<primatives::plane> planes;
-//            std::vector<primatives::sphere> spheres;
-
 		private:
 			//Simulation Parts
 			std::vector<primatives::boid> boids;
@@ -108,14 +107,14 @@ namespace simulation {
 			givr::style::Phong boid_style;
 			givr::InstancedRenderContext<givr::geometry::Mesh, givr::style::Phong> boid_render;
 
-			//givr::geometry::TriangleSoup wall_geometry;
-			//givr::style::Phong wall_style;
+			givr::geometry::TriangleSoup wall_geometry;
+			givr::style::Phong wall_style;
 			// Maybe changed this (below) to instanced render????????
-			//givr::RenderContext<givr::geometry::TriangleSoup, givr::style::Phong> wall_render;
+			givr::RenderContext<givr::geometry::TriangleSoup, givr::style::Phong> wall_render;
 
-			//givr::geometry::Sphere sphere_geometry;
-			//givr::style::Phong sphere_style;
-			//givr::InstancedRenderContext<givr::geometry::TriangleSoup, givr::style::Phong> sphere_render;
+			givr::geometry::Sphere sphere_geometry;
+			givr::style::Phong sphere_style;
+			givr::InstancedRenderContext<givr::geometry::Sphere, givr::style::Phong> sphere_render;
 		};
 	} // namespace models
 } // namespace simulation
