@@ -94,7 +94,7 @@ namespace simulation {
             float r_s = 6.f, r_a = 8.f, r_c = 10.f;
             float theta_s = 175.f * M_PI / 180.f, theta_a = 140.f * M_PI / 180.f, theta_c = 120.f * M_PI / 180.f;
             float k_s = 15.f, k_a = 0.4f, k_c = 0.2f;
-            float min_boid_v = 1.f, max_boid_v = 25.f;
+            float min_boid_v = 10.f, max_boid_v = 25.f;
 
 		private:
 			//Simulation Parts

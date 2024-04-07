@@ -10,11 +10,11 @@ namespace simulation {
 		//Unless changed in main, this will call only once before the window is created
 		BoidsModel::BoidsModel()
 			: boid_geometry(givr::geometry::Mesh(givr::geometry::Filename("./models/dart.obj")))
-			, boid_style(givr::style::Colour(1.f, 1.f, 0.f), givr::style::LightPosition(100.f, 100.f, 100.f))
+			, boid_style(givr::style::Colour(1.f, 1.f, 0.f), givr::style::LightPosition(100.f, 100.f, 100.f), givr::style::AmbientFactor(0.25f))
             , wall_geometry()
             , wall_style(givr::style::Colour(1.f, 1.f, 1.f), givr::style::LightPosition(100.f, 100.f, 100.f))
             , sphere_geometry()
-            , sphere_style(givr::style::Colour(0.f, 1.f, 1.f), givr::style::LightPosition(100.f, 100.f, 100.f))
+            , sphere_style(givr::style::Colour(0.f, 1.f, 1.f), givr::style::LightPosition(100.f, 100.f, 100.f), givr::style::AmbientFactor(0.25f))
 		{
             int plane_count = 6;
             planes.resize(plane_count);
@@ -36,10 +36,10 @@ namespace simulation {
             spheres.resize(sphere_count);
             for (int i = 0; i < sphere_count; ++i) {
                 primatives::sphere sp = primatives::sphere();
-                sp.origin = glm::vec3(-25.f, -25.f, -25.f);
+                sp.origin = glm::vec3(-0.f, -25.f, -25.f);
                 sp.radius = 15.f;
-                sp.epsilon = 3.f;
-                sp.collision_avoid_distance = 20.f;
+                sp.epsilon = 4.f;
+                sp.collision_avoid_distance = 5.f;
                 spheres[i] = sp;
             }
 
@@ -48,9 +48,8 @@ namespace simulation {
 
 			// Render
 			boid_render = givr::createInstancedRenderable(boid_geometry, boid_style);
-            wall_render = givr::createInstancedRenderable(wall_geometry, wall_style);
+//            wall_render = givr::createInstancedRenderable(wall_geometry, wall_style);
             sphere_render = givr::createInstancedRenderable(sphere_geometry, sphere_style);
-//            auto instancedSpheres = givr::createRenderable(sphere_geometry, sphere_style);
 		}
 
 		void BoidsModel::reset() {
@@ -122,12 +121,19 @@ namespace simulation {
 
                 // Clamping the velocity
                 float bi_speed = glm::length(bi.v);
-                std::clamp(bi_speed, min_boid_v, max_boid_v);
+                bi_speed = std::clamp(bi_speed, min_boid_v, max_boid_v);
                 if (glm::length(bi.v) > 0.01f) {
                     bi.v = glm::normalize(bi.v) * bi_speed;
+//                    if (glm::length(bi.v) > max_boid_v) {
+//                        std::cout << "WTF: " << glm::length(bi.v) << "\n";
+//                    }
                 }
 
                 bi.orientate();
+
+//                if (glm::length(bi.v) > max_boid_v) {
+//                    std::cout << "WTF: " << glm::length(bi.v) << "\n";
+//                }
             }
 
 //            boids[0].v = glm::normalize(glm::vec3(boids[0].p.y * -1.f, boids[0].p.x, 0.f)) * 10.f;
@@ -218,7 +224,8 @@ namespace simulation {
             glm::vec3 v_hat = glm::normalize(bi.v);
             float future_distance = std::sqrt((u_length * u_length) - (sphere.radius * sphere.radius));
             glm::vec3 future_pos = v_hat * future_distance;
-            if (glm::distance(future_pos, sphere.origin) <= sphere.radius + sphere.epsilon && u_length - sphere.radius - sphere.epsilon < sphere.collision_avoid_distance) {
+//            if (glm::distance(future_pos, sphere.origin) <= sphere.radius + sphere.epsilon && u_length - sphere.radius - sphere.epsilon < sphere.collision_avoid_distance) {
+            if (glm::dot(n_hat, bi.v) < 0.f && u_length - sphere.radius - sphere.epsilon < sphere.collision_avoid_distance) {
                 float dot_n_v = glm::dot(n_hat, v_hat);
                 if (dot_n_v > 0.99f || dot_n_v < -0.99f) {
                     dot_n_v = std::clamp(dot_n_v, -0.99f, 0.99f);
@@ -230,7 +237,10 @@ namespace simulation {
                 }
                 float r = ((u_length * u_length) - ((sphere.radius + sphere.epsilon) * (sphere.radius + sphere.epsilon))) / (2.f * (sphere.radius + sphere.epsilon - dot_u_a));
                 glm::vec3 a_c = (glm::dot(bi.v, bi.v) / r) * a_c_hat;
-                std::cout << glm::dot(a_c, bi.v) << "\n";
+//                std::cout << glm::length(a_c) << "\n";
+                if (r == 0) {
+                    std::cout << dot_u_a << "\n";
+                }
                 return a_c;
             }
 
