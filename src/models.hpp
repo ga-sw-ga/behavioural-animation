@@ -45,11 +45,18 @@ namespace simulation {
 		//Walls for avoidences and simulation boundry
 		struct plane {
 			//TO-DO: Define a splne for collision avoidence and container purposes
+            glm::vec3 origin = glm::vec3(0.f);
+            glm::vec3 normal = glm::vec3(0.f, 1.f, 0.f);
+            float epsilon = 5.f;
+            float collision_avoid_distance = 200.f;
+            float wall_k_s = 100.f, wall_k_d = 0.2f;
 		};
 
 		//Spheres for avoidences
 		struct sphere {
 			//TO-DO: Define a sphere for collision avoidence purposes
+            glm::vec3 origin = glm::vec3(0.f);
+            float radius = 1.f;
 		};
 	} // namespace primatives
 
@@ -74,20 +81,27 @@ namespace simulation {
             glm::vec3 separationForce(const primatives::boid& bi, const primatives::boid& bj) const;
             glm::vec3 cohesionForce(const primatives::boid& bi, const primatives::boid& bj) const;
             glm::vec3 alignmentForce(const primatives::boid& bi, const primatives::boid& bj) const;
+            glm::vec3 planeAvoidanceForce(const primatives::boid& bi, const primatives::plane& plane) const;
+            glm::vec3 sphereAvoidanceForce(const primatives::boid& bi, const primatives::sphere& sphere) const;
             static glm::mat4 calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal);
 
 			//Simulation Constants (you can re-assign values here from imgui)
-			glm::vec3 g = { 0.f, -9.81f, 0.f };
+			glm::vec3 g = { 0.f, -2.81f, 0.f };
 			size_t n_boids = 100; //need alot more eventually for full assignment
             float r_s = 6.f, r_a = 8.f, r_c = 10.f;
             float theta_s = 175.f * M_PI / 180.f, theta_a = 140.f * M_PI / 180.f, theta_c = 120.f * M_PI / 180.f;
-            float k_s = 1.f, k_a = 0.4f, k_c = 0.2f;
+            float k_s = 15.f, k_a = 0.4f, k_c = 0.2f;
+            float min_boid_v = 1.f, max_boid_v = 25.f;
+
+            //Collisions
+//            std::vector<primatives::plane> planes;
+//            std::vector<primatives::sphere> spheres;
 
 		private:
 			//Simulation Parts
 			std::vector<primatives::boid> boids;
-			//std::vector<primatives::plane> planes;
-			//std::vector<primatives::sphere> spheres;
+			std::vector<primatives::plane> planes;
+			std::vector<primatives::sphere> spheres;
 
 			//Render
 			givr::geometry::Mesh boid_geometry;

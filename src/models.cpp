@@ -12,6 +12,22 @@ namespace simulation {
 			: boid_geometry(givr::geometry::Mesh(givr::geometry::Filename("./models/dart.obj")))
 			, boid_style(givr::style::Colour(1.f, 1.f, 0.f), givr::style::LightPosition(100.f, 100.f, 100.f))
 		{
+            int plane_count = 6;
+            planes.resize(plane_count);
+            for (int i = 0; i < plane_count; ++i) {
+                primatives::plane pl = primatives::plane();
+                if (i < 2) {
+                    pl.origin = glm::vec3((i - 0.5f) * 50.f, 0.f, 0.f);
+                } else if (i < 4) {
+                    pl.origin = glm::vec3(0.f, (i - 2.5f) * 50.f, 0.f);
+                } else {
+                    pl.origin = glm::vec3(0.f, 0.f, (i - 4.5f) * 50.f);
+                }
+                std::cout << pl.origin.x << ", " << pl.origin.y << ", " << pl.origin.z << "\n";
+                pl.normal = glm::normalize(glm::vec3(0.f) - pl.origin);
+                planes[i] = pl;
+            }
+
 			// Reset Dynamic elements
 			reset();
 
@@ -73,9 +89,22 @@ namespace simulation {
                     }
                 }
 
+                for (int i = 0; i < planes.size(); ++i) {
+//                    std::cout << glm::length(planeAvoidanceForce(bi, planes[i])) << "\n";
+                    bi.f += planeAvoidanceForce(bi, planes[i]);
+                }
+
                 // Integrate forward velocity and position for bi
 //                std::cout << bi.f.x << ", " << bi.f.y << ", " << bi.f.z << "\n";
                 bi.integrate(dt);
+
+                // Clamping the velocity
+                float bi_speed = glm::length(bi.v);
+                std::clamp(bi_speed, min_boid_v, max_boid_v);
+                if (glm::length(bi.v) > 0.01f) {
+                    bi.v = glm::normalize(bi.v) * bi_speed;
+                }
+
                 bi.orientate();
             }
 
@@ -112,6 +141,39 @@ namespace simulation {
         // Function to calculate cohesion force
         glm::vec3 BoidsModel::cohesionForce(const primatives::boid& bi, const primatives::boid& bj) const {
             return k_c * (bj.p - bi.p); // Linear force
+        }
+
+        glm::vec3 BoidsModel::planeAvoidanceForce(const primatives::boid& bi, const primatives::plane& plane) const {
+            glm::vec3 u = bi.p - plane.origin;
+            glm::vec3 n_hat = glm::normalize(plane.normal);
+            glm::vec3 v_hat = glm::normalize(bi.v);
+            if (glm::dot(u, n_hat) < 0.f) {
+                float s_f = (glm::dot(u, n_hat)) * plane.wall_k_s * (-1.f);
+                float d_f = glm::dot(bi.v, n_hat) * plane.wall_k_d;
+                return (s_f + d_f) * n_hat;
+            }
+            else if (glm::dot(v_hat, n_hat) < 0.f && glm::dot(u, n_hat) < plane.collision_avoid_distance + plane.epsilon) {
+                float dot_n_v = glm::dot(n_hat, v_hat);
+                if (dot_n_v > 0.99f || dot_n_v < -0.99f) {
+                    dot_n_v = std::clamp(dot_n_v, -0.99f, 0.99f);
+                }
+                glm::vec3 a_c_hat = glm::normalize(n_hat - dot_n_v * v_hat);
+                float dot_a_n = glm::dot(a_c_hat, n_hat);
+                if (dot_a_n > 0.99f) {
+                    dot_a_n = 0.99f;
+                }
+                float r = (glm::dot(u, n_hat) - plane.epsilon) / (1 - dot_a_n);
+//                if (std::isnan(r)) {
+//                    std::cout << "WOOOW: " << glm::dot(a_c_hat, n_hat) << "\n";
+//                }
+                glm::vec3 a_c = (glm::dot(bi.v, bi.v) / r) * a_c_hat;
+                return a_c;
+            }
+            return glm::vec3(0.f);
+        }
+
+        glm::vec3 BoidsModel::sphereAvoidanceForce(const primatives::boid& bi, const primatives::sphere& sphere) const {
+
         }
 
         glm::mat4 BoidsModel::calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal) {
