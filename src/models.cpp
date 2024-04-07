@@ -38,7 +38,7 @@ namespace simulation {
                 primatives::sphere sp = primatives::sphere();
                 sp.origin = glm::vec3(-0.f, -25.f, -25.f);
                 sp.radius = 15.f;
-                sp.epsilon = 4.f;
+                sp.epsilon = 2.f;
                 sp.collision_avoid_distance = 5.f;
                 spheres[i] = sp;
             }
@@ -181,8 +181,8 @@ namespace simulation {
             glm::vec3 u = bi.p - plane.origin;
             glm::vec3 n_hat = glm::normalize(plane.normal);
             glm::vec3 v_hat = glm::normalize(bi.v);
-            if (glm::dot(u, n_hat) < 0.f) {
-                float s_f = (glm::dot(u, n_hat)) * plane.wall_k_s * (-1.f);
+            if (glm::dot(u, n_hat) < plane.epsilon) {
+                float s_f = (glm::dot(u, n_hat) - plane.epsilon) * plane.wall_k_s * (-1.f);
                 float d_f = glm::dot(bi.v, n_hat) * plane.wall_k_d;
                 return (s_f + d_f) * n_hat;
             }

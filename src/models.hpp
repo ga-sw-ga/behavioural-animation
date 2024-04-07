@@ -47,7 +47,7 @@ namespace simulation {
 			//TO-DO: Define a splne for collision avoidence and container purposes
             glm::vec3 origin = glm::vec3(0.f);
             glm::vec3 normal = glm::vec3(0.f, 1.f, 0.f);
-            float epsilon = 5.f;
+            float epsilon = 2.f;
             float collision_avoid_distance = 20.f;
             float wall_k_s = 100.f, wall_k_d = 0.2f;
 		};
