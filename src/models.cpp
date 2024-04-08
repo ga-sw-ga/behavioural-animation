@@ -21,13 +21,13 @@ namespace simulation {
             for (int i = 0; i < plane_count; ++i) {
                 primatives::plane pl = primatives::plane();
                 if (i < 2) {
-                    pl.origin = glm::vec3((i - 0.5f) * 50.f, 0.f, 0.f);
+                    pl.origin = glm::vec3((i - 0.5f) * grid_w, 0.f, 0.f);
                 } else if (i < 4) {
-                    pl.origin = glm::vec3(0.f, (i - 2.5f) * 50.f, 0.f);
+                    pl.origin = glm::vec3(0.f, (i - 2.5f) * grid_h, 0.f);
                 } else {
-                    pl.origin = glm::vec3(0.f, 0.f, (i - 4.5f) * 50.f);
+                    pl.origin = glm::vec3(0.f, 0.f, (i - 4.5f) * grid_d);
                 }
-                std::cout << pl.origin.x << ", " << pl.origin.y << ", " << pl.origin.z << "\n";
+//                std::cout << pl.origin.x << ", " << pl.origin.y << ", " << pl.origin.z << "\n";
                 pl.normal = glm::normalize(glm::vec3(0.f) - pl.origin);
                 planes[i] = pl;
             }
@@ -53,7 +53,9 @@ namespace simulation {
 		}
 
 		void BoidsModel::reset() {
-			// static so they are persistent
+            grid.resize_grid(grid_w, grid_h, grid_d, glm::vec3(-0.5f * grid_w, -0.5f * grid_h, -0.5f * grid_d), cell_size);
+
+            // static so they are persistent
 			static std::random_device random_device;
 			static std::mt19937 generator(random_device());
 			static std::uniform_real_distribution<double> position_distribution(-10., 10.);
@@ -62,8 +64,10 @@ namespace simulation {
 			static std::uniform_real_distribution<double> speed_distribution(5., 25.);
 
 			boids.resize(n_boids);
+            int boid_i = 0;
 			for (primatives::boid& boid : boids) {
 				//Random Position in 20 x 20 x 20 cube
+                boid.index = boid_i;
 				boid.p.x = position_distribution(generator);
 				boid.p.y = position_distribution(generator);
 				boid.p.z = position_distribution(generator);
@@ -78,45 +82,62 @@ namespace simulation {
 				boid.v.y = speed * std::sin(phi);
 				boid.v.z = speed * std::sin(theta) * std::cos(phi);
 
+                boid_i++;
+
+                grid.add_boid(boid);
 			}
 
 		}
 
         void BoidsModel::step(float dt) {
             // Iterate through each boid
+            grid.t_g++;
             for (primatives::boid& bi : boids) {
+                bi.p = clampPositionInGrid(bi.p);
+                grid.add_boid(bi);
+            }
+//            for (primatives::cell& c : grid.cells) {
+//                if (!c.boids.empty()) {
+//                    std::cout << "YAY!" << c.boids.size() << "\n";
+//                }
+//            }
+            for (primatives::boid& bi : boids) {
+                std::vector<primatives::cell> n_i = grid.neighbourhood(bi.p, cell_size);
+
                 bi.f = glm::vec3(0.f);
                 bi.g = g;
 
-                // Iterate through each other boid
-                for (const primatives::boid& bj : boids) {
-                    if (&bi == &bj) continue; // Skip self-comparison
+                for (const primatives::cell& cell : n_i) {
+//                    if (!cell.boids.empty()) {
+//                        std::cout << "YAY!" << cell.boids.size() << "\n";
+//                    }
+                    for (int b_index : cell.boids) {
+//                        std::cout << "YAY";
+                        primatives::boid bj = boids[b_index];
+                        if (&bi == &bj) continue; // Skip self-comparison
+                        glm::vec3 DeltaXij = bj.p - bi.p;
+                        float d = glm::length(DeltaXij);
+                        float alpha = glm::dot(glm::normalize(DeltaXij), glm::normalize(bi.v));
 
-                    glm::vec3 DeltaXij = bj.p - bi.p;
-                    float d = glm::length(DeltaXij);
-//                    std::cout << d << "\n";
-                    float alpha = glm::dot(glm::normalize(DeltaXij), glm::normalize(bi.v));
-
-                    if (d < r_s && alpha > cos(theta_s)) {
-                        bi.f += separationForce(bi, bj);
-                    } else if (d < r_a && alpha > cos(theta_a)) {
-                        bi.f += alignmentForce(bi, bj);
-                    } else if (d < r_c && alpha > cos(theta_c)) {
-                        bi.f += cohesionForce(bi, bj);
+                        if (d < r_s && alpha > cos(theta_s)) {
+                            bi.f += separationForce(bi, bj);
+                        } else if (d < r_a && alpha > cos(theta_a)) {
+                            bi.f += alignmentForce(bi, bj);
+                        } else if (d < r_c && alpha > cos(theta_c)) {
+                            bi.f += cohesionForce(bi, bj);
+                        }
                     }
                 }
 
-                for (int i = 0; i < planes.size(); ++i) {
-//                    std::cout << glm::length(planeAvoidanceForce(bi, planes[i])) << "\n";
-                    bi.f += planeAvoidanceForce(bi, planes[i]);
+                for (const auto & plane : planes) {
+                    bi.f += planeAvoidanceForce(bi, plane);
                 }
-                for (int i = 0; i < spheres.size(); ++i) {
-//                    std::cout << glm::length(planeAvoidanceForce(bi, planes[i])) << "\n";
-                    bi.f += sphereAvoidanceForce(bi, spheres[i]);
+
+                for (const auto & sphere : spheres) {
+                    bi.f += sphereAvoidanceForce(bi, sphere);
                 }
 
                 // Integrate forward velocity and position for bi
-//                std::cout << bi.f.x << ", " << bi.f.y << ", " << bi.f.z << "\n";
                 bi.integrate(dt);
 
                 // Clamping the velocity
@@ -124,24 +145,54 @@ namespace simulation {
                 bi_speed = std::clamp(bi_speed, min_boid_v, max_boid_v);
                 if (glm::length(bi.v) > 0.01f) {
                     bi.v = glm::normalize(bi.v) * bi_speed;
-//                    if (glm::length(bi.v) > max_boid_v) {
-//                        std::cout << "WTF: " << glm::length(bi.v) << "\n";
-//                    }
                 }
 
                 bi.orientate();
-
-//                if (glm::length(bi.v) > max_boid_v) {
-//                    std::cout << "WTF: " << glm::length(bi.v) << "\n";
-//                }
             }
-
-//            boids[0].v = glm::normalize(glm::vec3(boids[0].p.y * -1.f, boids[0].p.x, 0.f)) * 10.f;
-//            boids[1].v = glm::vec3(-5.f, 0.f, 0.f);
-//            boids[1].v = glm::vec3(10.f, 0.f, 0.f);
-//            boids[2].v = glm::vec3(10.f, 0.f, 0.f);
-//            boids[0].v = 10.f * glm::vec3((rand() - RAND_MAX / 1.f) / (RAND_MAX + 1.0), (rand() - RAND_MAX / 1.f) / (RAND_MAX + 1.0), (rand() - RAND_MAX / 1.f) / (RAND_MAX + 1.0));
-//            boids[0].integrate(dt);
+//            for (primatives::boid& bi : boids) {
+//                bi.f = glm::vec3(0.f);
+//                bi.g = g;
+//
+//                // Iterate through each other boid
+//                for (const primatives::boid& bj : boids) {
+//                    if (&bi == &bj) continue; // Skip self-comparison
+//
+//                    glm::vec3 DeltaXij = bj.p - bi.p;
+//                    float d = glm::length(DeltaXij);
+//                    float alpha = glm::dot(glm::normalize(DeltaXij), glm::normalize(bi.v));
+//
+//                    if (d < r_s && alpha > cos(theta_s)) {
+//                        bi.f += separationForce(bi, bj);
+//                    } else if (d < r_a && alpha > cos(theta_a)) {
+//                        bi.f += alignmentForce(bi, bj);
+//                    } else if (d < r_c && alpha > cos(theta_c)) {
+//                        bi.f += cohesionForce(bi, bj);
+//                    }
+//                }
+//
+//                for (int i = 0; i < planes.size(); ++i) {
+//                    bi.f += planeAvoidanceForce(bi, planes[i]);
+//                }
+//
+//                for (int i = 0; i < spheres.size(); ++i) {
+//                    bi.f += sphereAvoidanceForce(bi, spheres[i]);
+//                }
+//
+//                // Integrate forward velocity and position for bi
+//                bi.integrate(dt);
+//
+//                // Clamping the velocity
+//                float bi_speed = glm::length(bi.v);
+//                bi_speed = std::clamp(bi_speed, min_boid_v, max_boid_v);
+//                if (glm::length(bi.v) > 0.01f) {
+//                    bi.v = glm::normalize(bi.v) * bi_speed;
+//                }
+//
+//                bi.orientate();
+//
+//                bi.p = clampPositionInGrid(bi.p);
+//                grid.add_boid(bi);
+//            }
         }
 
 
@@ -245,6 +296,32 @@ namespace simulation {
             }
 
             return glm::vec3(0.f);
+        }
+
+        glm::vec3 BoidsModel::clampPositionInGrid(const glm::vec3 p) const {
+            glm::vec3 new_p = p;
+            if (new_p.x >= grid.w + grid.origin.x) {
+                new_p.x = grid.w + grid.origin.x - 0.01f;
+            }
+            else if (new_p.x <= grid.origin.x) {
+                new_p.x = grid.origin.x + 0.01f;
+            }
+
+            if (new_p.y >= grid.h + grid.origin.y) {
+                new_p.y = grid.h + grid.origin.y - 0.01f;
+            }
+            else if (new_p.y <= grid.origin.y) {
+                new_p.y = grid.origin.y + 0.01f;
+            }
+
+            if (new_p.z >= grid.d + grid.origin.z) {
+                new_p.z = grid.d + grid.origin.z - 0.01f;
+            }
+            else if (new_p.z <= grid.origin.z) {
+                new_p.z = grid.origin.z + 0.01f;
+            }
+
+            return new_p;
         }
 
         glm::mat4 BoidsModel::calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal) {
