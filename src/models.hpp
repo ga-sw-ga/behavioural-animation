@@ -29,11 +29,20 @@ namespace simulation {
 			//TO-DO: Modify this class to include certain desired quantities (mass, force, ...)
 			//May even add functions! Such as integration ...
 
+            int max_surround_boids = 7;
             // Integration function
             void integrate(float dt) {
                 glm::vec3 a = f + g;
                 v += a * dt;
                 p += v * dt;
+                if (std::isnan(p.x)) {
+//                    std::cout << "acc: " << (a).x << ", " << (a).y << ", " << (a).z << "\n";
+//                    std::cout << "vel: " << (v).x << ", " << (v).y << ", " << (v).z << "\n";
+//                    std::cout << "pos: " << (p).x << ", " << (p).y << ", " << (p).z << "\n";
+//                    std::cout << "ALSO HERE IS DT: " << dt << std::endl;
+                    p = glm::vec3(0.f);
+                    v = glm::vec3(0.f);
+                }
 //                std::cout << (v).x << ", " << (v).y << ", " << (v).z << "\n";
             }
 
@@ -66,6 +75,7 @@ namespace simulation {
 
         struct cell {
             std::vector<int> boids;
+            int index = 0;
             size_t t_c = 0;
 
             void clear_boids() {
@@ -95,6 +105,7 @@ namespace simulation {
                     cells[i] = cell();
                     cells[i].clear_boids();
                     cells[i].t_c = t_g;
+                    cells[i].index = i;
                 }
             }
 
@@ -112,8 +123,17 @@ namespace simulation {
                 int i_w = std::floor((p.x - origin.x) / cell_size);
                 int i_h = std::floor((p.y - origin.y) / cell_size);
                 int i_d = std::floor((p.z - origin.z) / cell_size);
-                if (i_w < 0 || i_w >= n_w || i_h < 0 || i_h >= n_h || i_d < 0 || i_d >= n_d) {
-                    std::cout << "WTF: " << p.x << ", " << p.y << ", " << p.z << "\n";
+                if (i_w < 0 || i_w >= n_w) {
+                    i_w = std::clamp(i_w, 0, n_w - 1);
+                    std::cout << "new i_w: " << i_w;
+                }
+                else if (i_h < 0 || i_h >= n_h) {
+                    i_h = std::clamp(i_h, 0, n_h - 1);
+                    std::cout << "new i_h: " << i_h;
+                }
+                else if (i_d < 0 || i_d >= n_d) {
+                    i_d = std::clamp(i_d, 0, n_d - 1);
+                    std::cout << "new i_d: " << i_d;
                 }
                 return get_cell(i_w, i_h, i_d);
             }
@@ -158,14 +178,10 @@ namespace simulation {
                                 neighbor_i_h >= 0 && neighbor_i_h < n_h &&
                                 neighbor_i_d >= 0 && neighbor_i_d < n_d) {
                                 neighborhoodCells.push_back(get_cell(neighbor_i_w, neighbor_i_h, neighbor_i_d));
-//                                if (!get_cell(neighbor_i_w, neighbor_i_h, neighbor_i_d).boids.empty()) {
-//                                    std::cout << "yay?" << "\n";
-//                                }
                             }
                         }
                     }
                 }
-//                std::cout << neighborhoodCells.size() << "\n";
                 return neighborhoodCells;
             }
         };
@@ -198,11 +214,11 @@ namespace simulation {
             static glm::mat4 calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal);
 
 			//Simulation Constants (you can re-assign values here from imgui)
-			glm::vec3 g = { 0.f, -9.81f, 0.f };
-			size_t n_boids = 1000; //need alot more eventually for full assignment
+			glm::vec3 g = { 0.f, -1.81f, 0.f };
+			size_t n_boids = 1000, n_spheres = 20; //need alot more eventually for full assignment
             float r_s = 6.f, r_a = 8.f, r_c = 10.f;
             float theta_s = 175.f * M_PI / 180.f, theta_a = 140.f * M_PI / 180.f, theta_c = 120.f * M_PI / 180.f;
-            float k_s = 1.f, k_a = 0.4f, k_c = 0.2f;
+            float k_s = 15.f, k_a = 0.4f, k_c = 0.2f;
             float min_boid_v = 10.f, max_boid_v = 25.f;
 
             float grid_w = 100.f, grid_h = 100.f, grid_d = 100.f;
@@ -222,9 +238,9 @@ namespace simulation {
 			givr::InstancedRenderContext<givr::geometry::Mesh, givr::style::Phong> boid_render;
 
 			givr::geometry::TriangleSoup wall_geometry;
-			givr::style::Phong wall_style;
+			givr::style::NoShading wall_style;
 			// Maybe changed this (below) to instanced render????????
-			givr::RenderContext<givr::geometry::TriangleSoup, givr::style::Phong> wall_render;
+			givr::RenderContext<givr::geometry::TriangleSoup, givr::style::NoShading> wall_render;
 
 			givr::geometry::Sphere sphere_geometry;
 			givr::style::Phong sphere_style;
