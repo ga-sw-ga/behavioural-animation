@@ -30,25 +30,25 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 43,
+				"line" : 46,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 44,
+				"line" : 47,
 				"parent" : 0
 			},
 			{
 				"command" : 2,
 				"file" : 0,
-				"line" : 46,
+				"line" : 49,
 				"parent" : 0
 			},
 			{
 				"command" : 3,
 				"file" : 0,
-				"line" : 10,
+				"line" : 13,
 				"parent" : 0
 			}
 		]
@@ -59,7 +59,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-g -std=c++17 -fdiagnostics-color=always"
+					"fragment" : " -std=c++11 -fopenmp -g -std=c++17 -fdiagnostics-color=always"
 				}
 			],
 			"defines" : 
@@ -184,7 +184,7 @@
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "-g",
+				"fragment" : "-std=c++11 -fopenmp -g",
 				"role" : "flags"
 			},
 			{

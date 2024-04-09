@@ -1,6 +1,9 @@
-cmake_minimum_required (VERSION 3.5.1) # Not sure what the minimum is required
+cmake_minimum_required (VERSION 3.6) # Not sure what the minimum is required
 project (a5_base CXX C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+
+# added -fopenmp
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp")
 
 # Use modern C++
 SET(CMAKE_CXX_STANDARD 17)

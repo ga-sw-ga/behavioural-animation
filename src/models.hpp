@@ -198,14 +198,14 @@ namespace simulation {
             static glm::mat4 calculateTransformMatrix(glm::vec3 position, glm::vec3 tangent, glm::vec3 normal, glm::vec3 binormal);
 
 			//Simulation Constants (you can re-assign values here from imgui)
-			glm::vec3 g = { 0.f, -2.81f, 0.f };
-			size_t n_boids = 500; //need alot more eventually for full assignment
-            float r_s = 5.f, r_a = 6.f, r_c = 8.f;
+			glm::vec3 g = { 0.f, -9.81f, 0.f };
+			size_t n_boids = 1000; //need alot more eventually for full assignment
+            float r_s = 6.f, r_a = 8.f, r_c = 10.f;
             float theta_s = 175.f * M_PI / 180.f, theta_a = 140.f * M_PI / 180.f, theta_c = 120.f * M_PI / 180.f;
-            float k_s = 15.f, k_a = 0.4f, k_c = 0.2f;
+            float k_s = 1.f, k_a = 0.4f, k_c = 0.2f;
             float min_boid_v = 10.f, max_boid_v = 25.f;
 
-            float grid_w = 150.f, grid_h = 150.f, grid_d = 150.f;
+            float grid_w = 100.f, grid_h = 100.f, grid_d = 100.f;
             float cell_size = std::max(r_s, std::max(r_c, r_a));
 
 		private:

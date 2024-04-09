@@ -1,5 +1,6 @@
 #include "models.hpp"
 #include <random>
+#include <omp.h>
 
 namespace simulation {
 	namespace primatives {
@@ -58,15 +59,20 @@ namespace simulation {
             // static so they are persistent
 			static std::random_device random_device;
 			static std::mt19937 generator(random_device());
-			static std::uniform_real_distribution<double> position_distribution(-10., 10.);
+			static std::uniform_real_distribution<double> position_distribution(-0.5f * std::min(std::min(grid_w, grid_h), grid_d),0.5f * std::min(std::min(grid_w, grid_h), grid_d));
 			static std::uniform_real_distribution<double> theta_distribution(-180., 180.);
 			static std::uniform_real_distribution<double> phi_distribution(-90., 90.);
 			static std::uniform_real_distribution<double> speed_distribution(5., 25.);
 
 			boids.resize(n_boids);
             int boid_i = 0;
-			for (primatives::boid& boid : boids) {
-				//Random Position in 20 x 20 x 20 cube
+//#pragma omp parallel for private(boid_i) shared(boids)
+            for (primatives::boid& boid : boids) {
+//                int tid = omp_get_thread_num(); // Get thread ID
+//                std::cout << "Thread " << tid << " is initializing boid " << boid_i << std::endl;
+
+
+                //Random Position in 20 x 20 x 20 cube
                 boid.index = boid_i;
 				boid.p.x = position_distribution(generator);
 				boid.p.y = position_distribution(generator);
@@ -92,15 +98,13 @@ namespace simulation {
         void BoidsModel::step(float dt) {
             // Iterate through each boid
             grid.t_g++;
+//#pragma omp parallel for shared(boids, grid)
             for (primatives::boid& bi : boids) {
                 bi.p = clampPositionInGrid(bi.p);
                 grid.add_boid(bi);
             }
-//            for (primatives::cell& c : grid.cells) {
-//                if (!c.boids.empty()) {
-//                    std::cout << "YAY!" << c.boids.size() << "\n";
-//                }
-//            }
+//            std::cout << "2nd";
+#pragma omp parallel for shared(boids, grid)
             for (primatives::boid& bi : boids) {
                 std::vector<primatives::cell> n_i = grid.neighbourhood(bi.p, cell_size);
 
@@ -108,11 +112,7 @@ namespace simulation {
                 bi.g = g;
 
                 for (const primatives::cell& cell : n_i) {
-//                    if (!cell.boids.empty()) {
-//                        std::cout << "YAY!" << cell.boids.size() << "\n";
-//                    }
                     for (int b_index : cell.boids) {
-//                        std::cout << "YAY";
                         primatives::boid bj = boids[b_index];
                         if (&bi == &bj) continue; // Skip self-comparison
                         glm::vec3 DeltaXij = bj.p - bi.p;
@@ -149,50 +149,6 @@ namespace simulation {
 
                 bi.orientate();
             }
-//            for (primatives::boid& bi : boids) {
-//                bi.f = glm::vec3(0.f);
-//                bi.g = g;
-//
-//                // Iterate through each other boid
-//                for (const primatives::boid& bj : boids) {
-//                    if (&bi == &bj) continue; // Skip self-comparison
-//
-//                    glm::vec3 DeltaXij = bj.p - bi.p;
-//                    float d = glm::length(DeltaXij);
-//                    float alpha = glm::dot(glm::normalize(DeltaXij), glm::normalize(bi.v));
-//
-//                    if (d < r_s && alpha > cos(theta_s)) {
-//                        bi.f += separationForce(bi, bj);
-//                    } else if (d < r_a && alpha > cos(theta_a)) {
-//                        bi.f += alignmentForce(bi, bj);
-//                    } else if (d < r_c && alpha > cos(theta_c)) {
-//                        bi.f += cohesionForce(bi, bj);
-//                    }
-//                }
-//
-//                for (int i = 0; i < planes.size(); ++i) {
-//                    bi.f += planeAvoidanceForce(bi, planes[i]);
-//                }
-//
-//                for (int i = 0; i < spheres.size(); ++i) {
-//                    bi.f += sphereAvoidanceForce(bi, spheres[i]);
-//                }
-//
-//                // Integrate forward velocity and position for bi
-//                bi.integrate(dt);
-//
-//                // Clamping the velocity
-//                float bi_speed = glm::length(bi.v);
-//                bi_speed = std::clamp(bi_speed, min_boid_v, max_boid_v);
-//                if (glm::length(bi.v) > 0.01f) {
-//                    bi.v = glm::normalize(bi.v) * bi_speed;
-//                }
-//
-//                bi.orientate();
-//
-//                bi.p = clampPositionInGrid(bi.p);
-//                grid.add_boid(bi);
-//            }
         }
 
 
