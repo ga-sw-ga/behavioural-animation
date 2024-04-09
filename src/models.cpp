@@ -72,13 +72,7 @@ namespace simulation {
 
 			boids.resize(n_boids);
             int boid_i = 0;
-//#pragma omp parallel for private(boid_i) shared(boids)
             for (primatives::boid& boid : boids) {
-//                int tid = omp_get_thread_num(); // Get thread ID
-//                std::cout << "Thread " << tid << " is initializing boid " << boid_i << std::endl;
-
-
-                //Random Position in 20 x 20 x 20 cube
                 boid.index = boid_i;
 				boid.p.x = position_distribution(generator);
 				boid.p.y = position_distribution(generator);
@@ -103,12 +97,10 @@ namespace simulation {
         void BoidsModel::step(float dt) {
             // Iterate through each boid
             grid.t_g++;
-//#pragma omp parallel for shared(boids, grid)
             for (primatives::boid& bi : boids) {
                 bi.p = clampPositionInGrid(bi.p);
                 grid.add_boid(bi);
             }
-//            std::cout << "2nd";
 #pragma omp parallel for shared(boids, grid)
             for (primatives::boid& bi : boids) {
                 int sur_boids = 0;
